@@ -1,3 +1,5 @@
+import { supportedComponentTypes } from '../../models/componentTypes.ts';
+import { initializeProjectSlugs } from './projectSlugs.ts';
 import { endpointSchema, type Endpoint } from '../../models/endpoints.ts';
 import { initializeConnections } from './connectionsSchema.ts';
 import { connectionDefinitionSchema, type ConnectionContract } from '../../models/connections.ts';
@@ -89,6 +91,7 @@ export class PlatformStore {
     };
     if (version.version !== 1) throw new Error('Versión de base de datos incompatible');
     try {
+      initializeProjectSlugs(this.db);
       initializeInventory(this.db);
       initializeOperations(this.db);
       initializeConnections(this.db);
@@ -110,7 +113,7 @@ export class PlatformStore {
   projects(userId: string): ProjectAccess[] {
     return this.db
       .prepare(
-        `SELECT p.id, p.organization_id AS organizationId, o.name AS organization, p.name, m.role, p.archived FROM projects p JOIN organizations o ON o.id=p.organization_id JOIN members m ON m.project_id=p.id WHERE m.user_id=? ORDER BY o.name`,
+        `SELECT p.id, p.slug, p.organization_id AS organizationId, o.name AS organization, p.name, m.role, p.archived FROM projects p JOIN organizations o ON o.id=p.organization_id JOIN members m ON m.project_id=p.id WHERE m.user_id=? ORDER BY o.name`,
       )
       .all(userId)
       .map((r) => ({
@@ -626,24 +629,7 @@ export class PlatformStore {
     };
     const visit = (nodes: ComponentNode[]) =>
       nodes.forEach((n) => {
-        if (
-          ![
-            'Container',
-            'Card',
-            'Heading',
-            'Paragraph',
-            'Button',
-            'Input',
-            'DataForm',
-            'DataTable',
-            'DataDetail',
-            'Inventory',
-            'ServiceForm',
-            'ApiQuery',
-            'RestTable',
-          ].includes(n.type)
-        )
-          fail(400, 'Componente no disponible: ' + n.type);
+        if (!supportedComponentTypes.has(n.type)) fail(400, 'Componente no disponible: ' + n.type);
         if (n.type === 'RestTable') {
           for (const endpoint of this.endpointContracts(projectId, [n])) {
             const resource = /\/resources\/([^/]+)/.exec(endpoint.path);

@@ -81,3 +81,9 @@ Despues probar POST /api/v1/projects/{projectId}/resources con el ejemplo Produc
 Los esquemas de entidades, campos y endpoints se derivan de las validaciones Zod; las validaciones de negocio se siguen aplicando en el servidor. Definir un recurso no genera archivos .ts ni permite ejecutar codigo libre. Para reglas especializadas, usar servicios configurables o un controlador Nest propio con sus DTO/decoradores Swagger.
 
 Verificacion: tests/swagger.test.ts valida el documento, sus metodos, UI/JSON y sesiones/recursos con SQLite temporal. El recorrido e2e-platform/swagger.spec.ts de Design comprueba login y creacion desde la propia interfaz de Swagger.
+
+### URLs de aplicaciones
+
+Las paginas de un proyecto usan `/:appSlug/:pageCode`, por ejemplo `/test001/productos` o `/test001/reportes/ventas`. El backend asigna un slug global unico a cada proyecto a partir del nombre de la organizacion y conserva ese slug aunque cambie el nombre visible. Las coincidencias reciben sufijos (`test001-2`). La migracion de bases existentes es automatica y conserva los IDs y los datos.
+
+Los enlaces antiguos `/p/:projectId/:pageCode` redirigen a la URL con slug, conservando query y fragmento. Las rutas cortas como `/productos` siguen resolviendo entre los proyectos accesibles; si hay varios resultados se solicita elegir la aplicacion. Cambiar la URL no concede permisos: se mantienen la sesion, el acceso al proyecto y la exigencia de publicar la pagina. Los IDs siguen usandose internamente en la API.

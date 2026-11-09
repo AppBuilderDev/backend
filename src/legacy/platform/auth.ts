@@ -1,3 +1,4 @@
+import { allocateProjectSlug } from './projectSlugs.ts';
 import { InventoryStore } from './inventory.ts';
 import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -90,8 +91,13 @@ export class PlatformAuth {
             .prepare('INSERT INTO organizations VALUES (?,?,?)')
             .run(org, data.organization, id);
           this.store.db
-            .prepare('INSERT INTO projects(id,organization_id,name) VALUES (?,?,?)')
-            .run(project, org, 'Mi aplicación');
+            .prepare('INSERT INTO projects(id,organization_id,name,slug) VALUES (?,?,?,?)')
+            .run(
+              project,
+              org,
+              'Mi aplicación',
+              allocateProjectSlug(this.store.db, data.organization!),
+            );
           this.store.db.prepare('INSERT INTO members VALUES (?,?,?)').run(project, id, 'owner');
           this.store.audit(project, id, 'organization.create', org);
         }
