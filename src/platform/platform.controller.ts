@@ -1,3 +1,4 @@
+import { ApiExcludeController } from '@nestjs/swagger';
 import { All, Controller, Inject, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { resolve } from 'node:path';
@@ -7,6 +8,7 @@ import { PlatformStore } from '../legacy/platform/store.ts';
 import { JsonPageRepository } from '../legacy/repository.ts';
 import { JsonBlockRepository } from '../legacy/blocksRepository.ts';
 export const platformOptions: NonNullable<Parameters<typeof createPlatform>[1]> = {};
+@ApiExcludeController()
 @Controller()
 export class PlatformController {
   private readonly handler: ReturnType<typeof createApiHandler>;

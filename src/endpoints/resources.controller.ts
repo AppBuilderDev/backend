@@ -1,3 +1,4 @@
+import { ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Controller, Get, Post, All, Param, Req, Body, Res, Inject } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
@@ -18,6 +19,7 @@ export class ResourcesController {
     const user = this.endpoints.authorize(req, p, true);
     return this.endpoints.store.saveEntity(p, body, user);
   }
+  @ApiExcludeEndpoint()
   @All([':key', ':key/:id'])
   records(
     @Param('projectId') p: string,

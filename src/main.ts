@@ -1,3 +1,4 @@
+import { setupSwagger } from './openapi/setup.ts';
 import type { INestApplication } from '@nestjs/common';
 import { platformOptions } from './platform/platform.controller.ts';
 import 'reflect-metadata';
@@ -22,6 +23,7 @@ export async function bootstrap(
     allowedHeaders: ['Content-Type', 'X-Requested-With'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
+  setupSwagger(app);
   app.enableShutdownHooks();
   const store = app.get(PlatformStore);
   configure?.(app);
