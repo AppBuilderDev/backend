@@ -1,14 +1,74 @@
 # AppBuilderDev Backend
 
-Backend NestJS independiente de Design y Runtime. Conserva la API de autenticacion, proyectos, paginas, entidades, inventario, operaciones y conexiones externas.
+API NestJS independiente de Design y Runtime. Node 24 recomendado (minimo del proyecto 22.22.2). SQLite conserva cuentas, proyectos, paginas, entidades, servicios e inventario.
 
-Usar Node 24. Instalar con `npm ci --ignore-scripts`, copiar `.env.example` a `.env` y ejecutar `npm run dev`. La API escucha en http://localhost:3001 y GET /health comprueba SQLite.
+```powershell
+npm ci --ignore-scripts
+Copy-Item .env.example .env
+npm run dev
+```
 
-PLATFORM_DB configura el archivo SQLite (por defecto data/platform.sqlite). Los datos, respaldos y .env se excluyen de Git. El controlador SQLite incluye binarios precompilados; --ignore-scripts evita la compilacion nativa con npm 10 en Windows.
+El controlador SQLite 13 incluye binarios precompilados. `--ignore-scripts` evita que npm 10 intente compilarlo con node-gyp en Windows sin Visual Studio. Vite y SQLite se verificaron con los binarios distribuidos. No se requiere Nest CLI global.
 
-La logica de dominio migrada vive en src/legacy/platform y se integra mediante PlatformModule. DatabaseModule proporciona la base transaccional. No existen imports a los repositorios frontend.
+API http://localhost:3001. Salud GET /health verifica SQLite. El archivo configurado en PLATFORM_DB se crea con todas las tablas al arrancar. Los datos locales migrados estan en data/platform.sqlite; el respaldo previo en data/platform-before-separation.sqlite. Ambos quedan fuera de Git. No se recrean cuentas ni se importan JSON como datos de una organizacion. Usar el mismo host en ambos frontends para compartir la cookie de sesion.
 
-Verificar con `npm run build`, `npm run lint` y `npm test`. Las pruebas usan bases temporales. `npm run backup` crea una copia verificada. El lanzador tests/fixtures/api.ts se usa exclusivamente para pruebas de navegador y no se importa en produccion.
+## Modulos
+
+- database: proveedor SQLite compartido y transacciones existentes.
+- endpoints: controladores y servicio Nest para catalogo HTTP y recursos CRUD.
+- platform: adaptador Nest para la API existente de autenticacion, proyectos, inventario, servicios configurables, conexiones externas y publicaciones. Se conserva el motor de dominio probado en src/legacy/platform; no se ha reescrito ni eliminado su control de permisos.
+- models: copia versionada de contratos; no importa archivos de los repositorios frontend.
+
+El adaptador preserva los endpoints /api/v1 existentes. La API antigua /api/pages y /api/blocks esta deshabilitada salvo ENABLE_LEGACY_API=1 para las pruebas historicas locales.
+
+## Crear un endpoint CRUD
+
+1. Autenticarse con POST /api/v1/auth/register o /auth/login (cookie HttpOnly).
+2. Crear el recurso con POST /api/v1/projects/:projectId/resources:
+
+```json
+{
+  "name": "Productos",
+  "key": "productos",
+  "labelField": "nombre",
+  "fields": [{ "key": "nombre", "label": "Nombre", "type": "text", "required": true }]
+}
+```
+
+El backend expone inmediatamente:
+
+| Metodo    | Ruta                                                           | Entrada                         |
+| --------- | -------------------------------------------------------------- | ------------------------------- |
+| GET       | /api/v1/projects/:projectId/resources/productos                | Lista {items,total,...}         |
+| GET       | /api/v1/projects/:projectId/resources/productos/:id            | Un registro                     |
+| POST      | /api/v1/projects/:projectId/resources/productos                | {"nombre":"Producto"}           |
+| PUT/PATCH | /api/v1/projects/:projectId/resources/productos/:id            | {"nombre":"Nuevo","revision":1} |
+| DELETE    | /api/v1/projects/:projectId/resources/productos/:id?revision=2 | Desactiva el registro           |
+
+Las escrituras requieren X-Requested-With: AppBuilderDev y rol de editor o propietario. Revision evita sobrescribir cambios de otra sesion. DELETE desactiva; conserva historial. El recurso de inventario utiliza sus operaciones especializadas.
+
+Tambien puedes implementar controladores Nest propios bajo /api/v1/projects/:projectId/... reutilizando EndpointsService.authorize y validacion. Registralos en AppModule antes del adaptador comodin PlatformModule. Agregar una ruta al catalogo no crea codigo fuente Nest; el generador de recursos crea endpoints por definicion de entidad.
+
+## Catalogo de rutas
+
+GET/POST /api/v1/projects/:projectId/endpoints, PUT/DELETE /endpoints/:id. Contrato: name, method, path con {projectId} y :id opcional, fields y itemsPath. La ruta debe pertenecer a la API del proyecto; no se aceptan URLs externas, traversal ni secretos. Las APIs externas de lectura conservan su flujo de conexiones y gateway seguro. Los endpoints de escritura externos/OAuth no forman parte de este cambio.
+
+Publicar una RestTable valida metodos e IDs y captura los contratos. Editar una ruta no cambia publicaciones anteriores hasta republicar. Eliminar una ruta usada se rechaza con 409. Las definiciones usadas de entidades tambien quedan protegidas por las publicaciones.
+
+## Configuracion
+
+API_HOST=127.0.0.1, API_PORT=3001, PLATFORM_DB=./data/platform.sqlite, CORS_ORIGINS lista de origenes. .env es exclusivamente del backend y no se copia al navegador. CONNECTOR_MASTER_KEY y CONNECTOR_ALLOWED_HOSTS se administran aqui. `npm run connectors:setup -- dominio.example` conserva/genera la clave sin imprimirla. Un unico proceso de API; no multiples escritores de SQLite.
+
+## Validar
+
+```powershell
+npm run build
+npm run lint
+npm test
+npm run backup -- ./data/backups/manual.sqlite
+```
+
+Build emite dist/ y `npm start` lo ejecuta. Las pruebas usan SQLite temporal. Desde ../frontend_design, `npm run test:e2e` inicia este backend en 3101 con datos aislados y ambos frontends en 5183/5184. El proveedor externo simulado existe solo en tests/fixtures/api.ts.
 
 ## Swagger / OpenAPI
 
